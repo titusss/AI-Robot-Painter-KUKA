@@ -21,7 +21,16 @@
 
 - **Paints or draws anything.** Paint any kind of single-, or multi-colored picture with your KUKA robot.
 - **Multicolor.** Choose as many colors as you want. Supports acrylic, oil, pencil and many more.
-- **Flexible setup.** You only need to measure canvas base and teach color refilling or tool switching paths.
+- **Flexible setup.** Setup in 10 minutes. Only needs to calibrate canvas base and teach color refilling or tool switching paths.
 - **Pretty safe.** Only generates 2D-coordinates that fit the canvas size, set by the user.
 - **Easy to configure.** Use the intuitive python CLI-tool or change the reasonably messy python code.
 
+## What you need
+
+- **KUKA robot.** This project was tested with a KR 10 R1420, but should work with any 3D-CNC device.
+- **KRC w. Ethernet-KRL*.** Use this KUKA package to communicate with your server via Ethernet.
+- **Server.** A laptop or similar, that is connected to the KRC via Ethernet and communicates over KLI.
+- **Python 3.** Install python on the server. I recommend an <a href="https://www.anaconda.com/distribution/">anaconda install</a>.
+- **Utilities.** Any kind of painting device attached to the robot, a canvas to draw on, paint and water (Optional).
+
+*Please note, that this project focuses on generating XYZ-coordinates from an input image in near real-time. In theory any kind of interface could be used here. Generating a complete array of coordinates and transfering the batch to the robot control afterwards (via USB-Stick e.g.) is possible with a few modifications.
