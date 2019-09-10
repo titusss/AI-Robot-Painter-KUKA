@@ -1,0 +1,33 @@
+<ETHERNETKRL>
+	<CONFIGURATION>
+		<EXTERNAL>
+			<IP>172.31.1.100</IP>
+			<PORT>59152</PORT>
+			<TYPE>Server</TYPE>
+		</EXTERNAL>
+		<INTERNAL>
+			<ENVIRONMENT>Program</ENVIRONMENT>
+			<BUFFERING Mode="FIFO" Limit="512"/>
+			<BUFFSIZE Limit="13029"/>
+			<TIMEOUT Connect="60000"/>
+			<ALIVE Set_Flag="1" Ping="10"/>
+			<IP>172.31.1.147</IP>
+			<PORT>54600</PORT>
+			<PROTOCOL>TCP</PROTOCOL>
+			<MESSAGES Display="error" Logging="disabled" />
+		</INTERNAL>
+	</CONFIGURATION>
+	<RECEIVE>
+		<XML>
+			<ELEMENT Type="FRAME" Tag="Ext/Points/xyzabc"/>
+			<ELEMENT Type="INT" Tag="Ext/Color"/>
+         		<ELEMENT Type="INT" Tag="Ext/Status" Set_Flag="993"/>
+			<ELEMENT Tag="Ext" Set_Flag="997"/>
+		</XML>
+	</RECEIVE>
+	<SEND>
+		<XML>
+			<ELEMENT Tag="Robot/Status"/>
+		</XML>
+	</SEND>
+</ETHERNETKRL>

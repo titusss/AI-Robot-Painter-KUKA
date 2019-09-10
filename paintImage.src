@@ -1,0 +1,178 @@
+&ACCESS RVP
+&REL 47
+DEF paintImage( )
+;FOLD Declaration
+   DECL EKI_STATUS RET
+   DECL FRAME nextPoint
+   DECL INT status
+   DECL INT currentColor
+   DECL BOOL pathStart
+   $FLAG[1]=FALSE
+
+
+
+   ;FOLD INI;%{PE}
+      ;FOLD BASISTECH INI
+         GLOBAL INTERRUPT DECL 3 WHEN $STOPMESS==TRUE DO IR_STOPM ( )
+         INTERRUPT ON 3 
+         BAS (#INITMOV,0 )
+      ;ENDFOLD (BASISTECH INI)
+      ;FOLD USER INI
+         ;Make your modifications here
+         
+      ;ENDFOLD (USER INI)
+      ;ENDFOLD (INI)
+      ;FOLD Initialize sample data
+         nextPoint = {X 200,Y 600,Z 600}
+         status = 0      
+         currentColor = 1000
+         pathStart = TRUE
+       
+      ;ENDFOLD (Initialize sample data)
+      ;ENDFOLD (Declaration)
+
+
+   ;FOLD PTP HOME  Vel= 100 % DEFAULT;%{PE}%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:HOME, 3:, 5:100, 7:DEFAULT
+      $BWDSTART = FALSE
+      PDAT_ACT=PDEFAULT
+      FDAT_ACT=FHOME
+      BAS (#PTP_PARAMS,10 )
+      $H_POS=XHOME
+      PTP  XHOME
+   ;ENDFOLD
+
+
+;FOLD PTP P8 Vel=10 % PDAT4 Tool[2]:pinselC Base[3]:canvas1;%{PE}%R 8.3.48,%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:P8, 3:, 5:10, 7:PDAT4
+$BWDSTART=FALSE
+PDAT_ACT=PPDAT4
+FDAT_ACT=FP8
+BAS(#PTP_PARAMS,10)
+PTP XP8 
+;ENDFOLD
+RET=EKI_Init("xmlPaintImage")
+RET=EKI_Open("xmlPaintImage")
+
+LOOP
+WAIT FOR $FLAG[993] == TRUE
+RET=EKI_GetInt("xmlPaintImage","Ext/Status",status)
+$FLAG[993] = FALSE
+
+WAIT FOR $FLAG[997] == TRUE
+
+SWITCH status
+   
+CASE POINT
+RET=EKI_GetFrame("xmlPaintImage","Ext/Points/xyzabc",nextPoint)
+if pathStart == TRUE THEN
+
+   ;FOLD PTP hoverNextPoint Vel=20 % PDAT8 Tool[2]:pinselC Base[3]:canvas1;%{PE}%R 8.3.48,%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:P4, 3:, 5:100, 7:PDAT4
+   $BWDSTART=FALSE
+   PDAT_ACT=PPDAT2
+   FDAT_ACT=FP4
+   BAS(#PTP_PARAMS,20)
+   PTP nextPoint : {X 0,Y 0,Z -100,A 0,B 0,C 0} 
+   ;ENDFOLD
+
+   ;FOLD PTP nextPoint Vel=5 % PDAT4 Tool[2]:pinselC Base[3]:canvas1;%{PE}%R 8.3.48,%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:P4, 3:, 5:100, 7:PDAT4
+   $BWDSTART=FALSE
+   PDAT_ACT=PPDAT4
+   FDAT_ACT=FP4
+   BAS(#PTP_PARAMS,5)
+   LIN nextPoint
+   ;ENDFOLD
+   pathStart = FALSE
+
+ENDIF
+pathStart = FALSE
+;FOLD PTP P4 Vel=100 % PDAT4 Tool[2]:pinselC Base[3]:canvas1;%{PE}%R 8.3.48,%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:P4, 3:, 5:100, 7:PDAT4
+$BWDSTART=FALSE
+PDAT_ACT=PPDAT4
+FDAT_ACT=FP4
+BAS(#PTP_PARAMS,70)
+LIN nextPoint 
+;ENDFOLD
+
+
+CASE RENEWCOLOR
+RET=EKI_GetInt("xmlPaintImage","Ext/Color",currentColor)
+pathStart = TRUE
+;RET=EKI_GetFrame("xmlPaintImage","Ext/Points/xyzabc",nextPoint)
+;FOLD PTP hoverPoint Vel=20 % PDAT4 Tool[2]:pinselC Base[3]:canvas1;%{PE}%R 8.3.48,%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:P4, 3:, 5:100, 7:PDAT4
+$BWDSTART=FALSE
+PDAT_ACT=PPDAT4
+FDAT_ACT=FP4
+BAS(#PTP_PARAMS,20)
+PTP $POS_ACT : {X 0,Y 0,Z -100,A 0,B 0,C 0} 
+;ENDFOLD
+colorPick(currentColor)
+
+CASE NEWPATH
+RET=EKI_GetFrame("xmlPaintImage","Ext/Points/xyzabc",nextPoint)
+pathStart = TRUE
+;FOLD PTP hoverPoint Vel=20 % PDAT4 Tool[2]:pinselC Base[3]:canvas1;%{PE}%R 8.3.48,%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:P4, 3:, 5:100, 7:PDAT4
+$BWDSTART=FALSE
+PDAT_ACT=PPDAT4
+FDAT_ACT=FP4
+BAS(#PTP_PARAMS,20)
+LIN $POS_ACT : {X 0,Y 0,Z -100,A 0,B 0,C 0} 
+;ENDFOLD
+
+
+ENDSWITCH
+
+RET=EKI_ClearBuffer("xmlPaintImage","Ext")
+RET=EKI_SetBool("xmlPaintImage","Robot/Status",true)
+RET=EKI_Send("xmlPaintImage","Robot")
+
+
+
+ENDLOOP
+
+RET=EKI_Clear("xmlPaintImage")
+RET=EKI_Close("xmlPaintImage")
+
+   ;FOLD PTP HOME  Vel= 100 % DEFAULT;%{PE}%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:HOME, 3:, 5:100, 7:DEFAULT
+      $BWDSTART = FALSE
+      PDAT_ACT=PDEFAULT
+      FDAT_ACT=FHOME
+      BAS (#PTP_PARAMS,10 )
+      $H_POS=XHOME
+      PTP  XHOME
+   ;ENDFOLD
+END
+
+DEF colorPick(COLOR:IN)
+INT COLOR
+colorHome()
+water()
+drying()
+colorHome()
+SWITCH COLOR
+   CASE 1
+      l1c1()
+   CASE 2
+      l1c2()
+   CASE 3
+      l1c3()
+   CASE 4
+      l2c1()
+   CASE 5
+      l2c2()
+   CASE 6
+      l2c3()
+   CASE 7
+      l3c1()
+   CASE 8
+      l3c2()
+   CASE 9
+      l3c3()
+   CASE 10
+      l4c1()
+   CASE 11
+      l4c2()
+   CASE 12
+      l4c3()
+ENDSWITCH
+colorHome()
+      
+END
