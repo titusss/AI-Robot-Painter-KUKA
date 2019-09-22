@@ -1,3 +1,7 @@
+#-------------------------------------------------
+# Copyright (c) 2019, Titus Ebbecke. All rights reserved.
+#-------------------------------------------------
+
 import numpy as np
 from numpy import linalg as LA
 import cv2
@@ -5,212 +9,251 @@ import sys
 import math
 import socket
 import time
+import datetime
+import pathlib
+import config as cfg
+import configcheck as check
+import colors
+from copy import deepcopy
 
+#-------------------------------------------------
+# Initialize image loading/generation and check config
 
-### CLI Arguments
+check.imgLoad()
+check.securityCheck()
 
-genreType = sys.argv[1]
-inputFile = sys.argv[2]
-outputFile = sys.argv[3]
-a = []
-b = []
-c = []
+#-------------------------------------------------
+# Image preparation and color quantization
 
-### Variables
+img = cv2.imread(check.img)
 
-colorAmount = 12
-colorDifferenceMax = 500
+height, width, depth = img.shape
+img = cv2.resize(img,(int(width*cfg.imgScale), int(height*cfg.imgScale))) # Scales image, when defined in config.py
 
-## Define the color values of the paint here. You can change them to whatever you think represents the choosen images in 12 colors the best, or which paint you are using.
-
-# Portrait Color Palette. Read numbers from left to right, top to bottom. Values are in BGR. Naming is very roughly oriented at this https://en.wikipedia.org/wiki/List_of_colors:_A-F
-
-deepChestnut_1 = [40, 75, 185]
-bronze_2 = [74, 146, 216]
-dutchWhite_3 = [135, 200, 231]
-bone_4 = [205, 223, 222]
-battleshipGrey_5 = [118, 133, 135]
-ashGray_6 = [154, 171, 174]
-frenchBeige_7 = [77, 113, 149]
-babyPowder_8 = [250, 252, 252]
-darkBrown_9 = [32, 43, 63]
-blueSapphire_10 = [105, 100, 25]
-coyoteBrown_11 = [61, 80, 101]
-blackChocolate_12 = [10, 12, 20]
-
-# Abstract Color Palette. Read numbers from left to right, top to bottom. Values are in BGR. Naming is very roughly oriented at this https://en.wikipedia.org/wiki/List_of_colors:_A-F
-
-cultured_1 = [249, 250, 251]
-almond_2 = [221, 217, 210]
-cadmiumRed_3 = [13, 38, 228]
-citrine_4 = [28, 200, 240]
-bdazzledBlue_5 = [148, 83, 11]
-blueGray_6 = [140, 125, 80]
-copperRed_7 = [82, 121, 209]
-burlywood_8 = [152, 192, 220]
-blackShadows_9 = [147, 160, 175]
-burnishedBrown_10 = [103, 113, 131]
-darkLiverHorses_11 = [54, 61, 77]
-black_12 = [19, 18, 19]
-
-if genreType == 'portrait':
-	colorPaint = np.array([deepChestnut_1, bronze_2, dutchWhite_3, bone_4, battleshipGrey_5, ashGray_6, frenchBeige_7, babyPowder_8, darkBrown_9, blueSapphire_10, coyoteBrown_11, blackChocolate_12])
-elif genreType == 'abstract':
-
-	colorPaint = np.array([cultured_1, almond_2, cadmiumRed_3, citrine_4, bdazzledBlue_5, blueGray_6, copperRed_7, burlywood_8, blackShadows_9, burnishedBrown_10, darkLiverHorses_11, black_12])
-else:
-	sys.exit("Error, please specify Genre Type. Choose \"portrait\" or \"abstract\"")
-
-### CLI info
-
-print("Converting", genreType, "image to", np.shape(colorPaint)[0], "colors.")
-
-### K-means Algorithm to reduce color amount to K
-
-## Read Image file
-
-img = cv2.imread(inputFile)
+# Apply fine tuning, when specified in config.py
+if cfg.blur > 0:
+    img = cv2.GaussianBlur(img,(cfg.blur,cfg.blur),0)
+if cfg.denoise > 0:
+    img = cv2.fastNlMeansDenoisingColored(img,None,cfg.denoise,cfg.denoise,7,21)
+if cfg.threshColor >= 0:
+    img = cv2.threshold(img,cfg.threshColor,255,cv2.THRESH_BINARY)[1]
 
 Y = img.reshape((-1, 3))
 Y = np.float32(Y)
 
-## Apply k-means
-
+# K-means Algorithm to reduce color amount to K
+K = colors.colorPaint.shape[0] # Amount of colors
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-K = np.shape(colorPaint)[0] # nClusters, equivalent to the amount of paint colors used
 ret,label,center=cv2.kmeans(Y,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
 center = np.uint8(center)
 res = center[label.flatten()]
 res2 = res.reshape((img.shape))
 
-## Check image for closest color from the predefined palette
-print(center)
+#-------------------------------------------------
+# Change reduced colors to the colors defined in colors.py
+
+colorDifferenceMax = 500
+a = []
+b = []
+c = []
 
 for i in range(K):
-	for j in range(K):
-		#d = math.sqrt((((center[i][2])-(colorPaint[j][2])))**2 + (((center[i][1])-(colorPaint[j][1])))**2 + (((center[i][0])-(colorPaint[j][0])))**2) # Calculate euclidean distance
-		d = math.sqrt((((center[i][2])-(colorPaint[j][2]))*0.3)**2 + (((center[i][1])-(colorPaint[j][1]))*0.59)**2 + (((center[i][0])-(colorPaint[j][0]))*0.11)**2) # Calculate euclidean distance with weights. May improve color matching. Eyes perceive some colors better then others. Uncomment this line and comment out the above one, to apply.
-		a.insert(j, int(d))
-	print(a)
-	if a[np.argmin(a)] < colorDifferenceMax:
-		b.insert(i, np.argmin(a))
-		a.clear()
-		c.clear()
-	else:
-		b.insert(i, "null")
-		a.clear()
+    for j in range(K):
+        #d = math.sqrt((((center[i][2])-(colors.colorPaint[j][2])))**2 + (((center[i][1])-(colors.colorPaint[j][1])))**2 + (((center[i][0])-(colors.colorPaint[j][0])))**2) # Calculate euclidean distance between source colors and palette colors
+        d = math.sqrt((((center[i][2])-(colors.colorPaint[j][2]))*0.3)**2 + (((center[i][1])-(colors.colorPaint[j][1]))*0.59)**2 + (((center[i][0])-(colors.colorPaint[j][0]))*0.11)**2) # Calculate euclidean distance with weights. May improve color matching. Eyes perceive some colors better then others. Uncomment this line and comment out the above one, to apply
+        a.insert(j, int(d))
+    if a[np.argmin(a)] < colorDifferenceMax: # Fallback when color distance is too large
+        b.insert(i, np.argmin(a))
+        a.clear()
+        c.clear()
+    else:
+        b.insert(i, "null")
+        a.clear()
 
-print("Index of closest colors", b)
-
-
-## Match color from k-means reduced input image with color palette
+# Match colors from k-means reduced input image with color palette from colors.py
 for i in range(K):
-	print("center:", center[i])
-	print("colorPaint", colorPaint[b][i])
-	res2[np.where((res2== [center[i]]).all(axis=2))] = [colorPaint[b][i]]
-	
-### Convert to CNC path
+   res2[np.where((res2== [center[i]]).all(axis=2))] = [colors.colorPaint[b][i]]
+imgReduced = deepcopy(res2)
 
-## Brush variables
-brushRadius = 10 # Brush radius in mm
-canvasSize = [400, 400] # Canvas width and height in mm
-resizeFactor = img.shape[0]/canvasSize[0]
-brushPixel = brushRadius*resizeFactor
+#-------------------------------------------------
+# Setup parameters for CNC translation
 
-## Remove noise form mask with erosion followed by dilation (optional)
+# Calculate pixel-to-mm ratio
+canvasSize = [cfg.canvasWidth, cfg.canvasHeight]
+if img.shape[0] > img.shape[1]:
+    resizeFactor = canvasSize[0]/img.shape[0]
+else:
+    resizeFactor = canvasSize[0]/img.shape[1]
 
-#kernel = np.ones((3,3),np.uint8) # Fine tune kernel for less or more denoising
-#mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-
-## Mask colors
-
-kernelBrush = np.ones((int(brushPixel)-3,int(brushPixel)-3),np.uint8) # This is the erosion kernel. Increase the weights that are subtracted from the values, to reduce missed spots
+# Setup variables
 size = np.size(img)
 done = False
-strokeLength = 1000 # Maximum brush stroke length in mm
-strokeLengthPixel = int(strokeLength*resizeFactor)
-
-contourPath = []
-contourParent = []
-colorPath = []
-path = []
-nextPoint = ''
-changeColor = True
-
+strokeLength = int(cfg.strokeLength*resizeFactor) # Maximum brush stroke length in mm
+brushPixel = cfg.brushSize*resizeFactor
+initialPath = True
 contourExists = False
-connectionOpen = True
+singlePathJump = False
+directionDegrees = 90
+kernelBrush = np.ones((int(brushPixel)-5,int(brushPixel)-5),np.uint8) # Erosion kernel. Reduces brush size. Increase negative values, to reduce missed painting spots
+messageCount = 0
 
+#-------------------------------------------------
+# Network - Socket
 
-### Configure socket here
-
-host = "172.31.1.100"
-port = 59152
-
-## Bind with client
-
+#Binds the Client with the Server
 mySocket = socket.socket()
-mySocket.bind((host,port))
+mySocket.bind((cfg.host,cfg.port))
+ 
 mySocket.listen(1)
 conn, addr = mySocket.accept()
 print ("Connection from: " + str(addr))
 
-## Define communication
+#-------------------------------------------------
+# Define communication function
 
 def sendActions(message):
-	message = message.encode()
-	conn.send(message)
-	print("Message sent to Client:", message)
-	answer = conn.recv(33)
-	answer = answer.decode()
-	print("Client answered with:", answer)
+    global messageCount
+    message = message.encode()
+    conn.send(message)
+    print("Message sent to client:", message)
+    print("\n")
+    messageCount += 1
+    answer = conn.recv(33)
+    answer = answer.decode()
+    print("Client answer:", answer)
 
-### Loop through colors to find color clusters, create contours for them and erode them for innermore contours
+#-------------------------------------------------
+# Near-Real-Time rommunication with robot
+#
+# DOCUMENTATION
+#
+# <Status 1> = Normal frame of coordinates.
+# <Status 2> = Take paint with tool. May be removed, when your tool supports continous paint delivery and needs no paint refresh.
+# <Status 3> = Path jump. A contour has been finished and the robot jumps to the beginning of the next contour.
 
 while True:
-	for i in range(K):
-		mask = cv2.inRange(res2, colorPaint[i], colorPaint[i]) # Apply mask
-		colorSelected = colorPaint[i]
-		while(not done):
-			mask = cv2.GaussianBlur(mask,(9,9),0) # Blur mask to reduce edges and therefore CNC points. Must be an odd number and positive.
-			ret, thresh = cv2.threshold(mask, 127, 255, 0)
-			im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-			cv2.drawContours(res2, contours, -1, (0,255,0), 1)
-			mask = cv2.erode(mask,kernelBrush,iterations = 1) # Shrink mask 
-			zeros = size - cv2.countNonZero(mask)
-			if len(contours) > 0:
-				sendActions('<Ext><Status>2</Status><Color>'+str(i+1)+'</Color></Ext>')
-				currentStrokeLength = 0
-			for l in range(len(contours)):
-				newPath = False
-				for m in range(len(contours[l])-1):
-					contourExists = True
-					currentX = contours[l][m][0][0]
-					currentY = contours[l][m][0][1]
+    # Loop through all colors K
+    for i in range(K):
+        mask = cv2.inRange(res2, colors.colorPaint[i], colors.colorPaint[i]) # Define parameters of the color mask
+        # Remove noise from mask with erosion followed by dilation (Opening)
+        #kernel = np.ones((2,2),np.uint8) # Fine tune kernel for less or more denoising
+        #mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        colorSelected = colors.colorPaint[i]
 
-					if m < len(contours[l]):
-						dist = np.linalg.norm(contours[l][m][0]-contours[l][m+1][0]) # Calculate stroke length
-						currentStrokeLength = currentStrokeLength+dist
+        while(not done):
+            ret, thresh = cv2.threshold(mask, 127, 255, 0) # Mask color K
+            im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours in color mask
+            cv2.drawContours(res2, contours, -1, (0,255,0), 1) # Draw contours
+            zeros = size - cv2.countNonZero(mask)
+            mask = cv2.erode(mask,kernelBrush,iterations = 1) # Shrink mask for innermore contour
 
-					if currentStrokeLength > strokeLength:
-						sendActions('<Ext><Status>2</Status><Color>'+str(i+1)+'</Color></Ext>')
-						currentStrokeLength = 0
+            # Take paint for the very first time, when currently selected color exists
+            if len(contours) > 0 and initialPath == True:
+                sendActions('<Ext><Status>2</Status><Color>99</Color></Ext>')
+                print("Start with color:", colors.colorPaint[i])
+                currentStrokeLength = 0
+                initialPath = False
 
-					if currentX <= canvasSize[0] and currentY <= canvasSize[1]:
-						sendActions('<Ext><Status>1</Status><Points><xyzabc X="'+str(currentX)+'" Y="'+str(currentY)+'" Z="0" A="0" B="0" C="0"/></Points></Ext>')
-					else:
-						sys.exit("Fatal: Points are being generated, that are larger than the given canvas size. Proceeding may cause serious damage and injury to the manipulator and it's sourroundings.")
-				print("newPath")
-				sendActions('<Ext><Status>3</Status><Points><xyzabc X="'+str(currentX)+'" Y="'+str(currentY)+'" Z="0" A="0" B="0" C="0" /></Points></Ext>')
-				newPath = True
+            # Loop through all contours of the current color
+            for l in range(len(contours)):
+                newPath = False
+                if len(contours[l])>1:
+                    for m in range(len(contours[l])):
+                        contourExists = True
+                        # Calculate distance to next coordinate, if there is a next coordinate in the array
+                        if m < (len(contours[l])-1):
+                            dist = np.linalg.norm(contours[l][m][0]-contours[l][m+1][0]) # Calculate euclidean distance from current to next point
+                            # Calculate more distant coordinates
+                            if m < (len(contours[l])-5):
+                                longDist = np.linalg.norm(contours[l][m][0]-contours[l][m+5][0]) # Calculate euclidean distance from current to fifth next point
+                                longX = contours[l][m+5][0][0]
+                                longY = contours[l][m+5][0][1]
+                            # Fallback, when the coordinate array approached it's end
+                            else:                               
+                                longX = contours[l][m][0][0]
+                                longY = contours[l][m][0][1]
+                                longDist = 0
 
-			if zeros==size:
-				done = True
-				contourExists == False
-		
-		done = False
-	pcDone = True 
-conn.close()
-cv2.imshow("res2", res2)
-cv2.imshow("mask", mask)
+                        # Calculate final coordinates (new and old ones)
+                        # A coordinate is one xy-point in pixel of the contour-array
+                        # It's then multiplied by the resize factor, to convert it into mm
+                        currentX = round((contours[l][m][0][0])*resizeFactor)
+                        currentY = round((contours[l][m][0][1])*resizeFactor)
+                        lastX = round((contours[l][m-1][0][0])*resizeFactor)
+                        lastY = round((contours[l][m-1][0][1])*resizeFactor)
+
+                        # Calculate the direction to the next point
+                        directionRadians = math.atan2(currentY-lastY, currentX-lastX)
+                        directionDegrees = (round(math.degrees(directionRadians)/10))*10
+                        # If the distance to the next point is too short and therefore irrelevant, take fifth next point
+                        # This prevents the tool from changing it's direction unnecessarily much, when points have wildly different directions, because they're very close to each other
+                        if longDist < 40:
+                            directionRadians = math.atan2(longY-lastY, longX-lastX)
+                            directionDegrees = (round(math.degrees(directionRadians)/10))*10
+
+                        # CLI info
+                        print("Angle to next point:", directionDegrees)
+                        print("Distance to next point:", dist)
+                        print("Stroke length:", currentStrokeLength)
+                        
+                        #-------------------------------------------------
+                        # Sending status and coordinate frames
+                        
+                        # Check if coordinates are far enough away from the canvas border
+                        # Not painting these coordinates prevents the robot from painting 'framing contours'
+                        # These are created when the edge-contour of a (empty) background are found
+                        # You may change this, if you also want these to be painted, e.g. in a full color painting
+                        if currentX <= canvasSize[0]-10 and currentY <= canvasSize[1]-10 and currentX > 10 and currentY > 10:                       
+                            sendActions('<Ext><Status>1</Status><Points><xyzabc X="'+str(currentX)+'" Y="'+str(currentY)+'" Z="'+str(cfg.toolDepth)+'" A="-0" B="-15" C="0"/></Points></Ext>')
+                        
+                        # When coordinates are too close to the edge (framing coordinates), move the robot to X=350, Y=350, Z=-300
+                        # The robot will stay there and do nothing, until the current coordinates are not framing coordinates
+                        elif currentX <= canvasSize[0] and currentY <= canvasSize[1]:
+                            print("Coordinates too close to the edge. Wait for innermore coordinates.")
+                            sendActions('<Ext><Status>1</Status><Points><xyzabc X="350" Y="350" Z="-300" A="-0" B="-15" C="0"/></Points></Ext>')
+                        
+                        else:
+                        # Exit with fatal, when coordinates outside of the canvas are being generated
+                        # This prevents the robot from leaving the canvas during the painting process
+                            print("currentX, currentY", currentX, currentY)
+                            sys.exit("Fatal: Points are being generated, that are larger than the given canvas size. Proceeding may cause serious damage and injury to the manipulator and it's sourroundings.")
+                        
+                        # Refresh paint, if the robot has painted a path longer than "strokeLength"
+                        if currentStrokeLength > strokeLength:
+                            print("Maximum stroke length reached. Refresh paint")
+                            sendActions('<Ext><Status>2</Status><Color>99</Color></Ext>')                           
+                            currentStrokeLength = 0 # Reset length of the stroke after color refresh
+
+                        currentStrokeLength = currentStrokeLength+dist # Calculate the length of the path painted
+                        singlePathJump = True
+
+                print("Contour finished. Jump to new contour.")
+                if singlePathJump == True:
+                    # Jump to new contour
+                    sendActions('<Ext><Status>3</Status><Points><xyzabc X="'+str(lastX)+'" Y="'+str(lastY)+'" Z="'+str(cfg.toolDepth)+'" A="-0" B="-15" C="0"/></Points></Ext>')
+                    newPath = True
+                    singlePathJump = False
+            
+            if zeros==size:
+                done = True
+                contourExists == False
+        done = False
+
+    if done == True:
+        conn.close()
+        print("Color finished.")
+
+#-------------------------------------------------
+# Save and show prepared source image and paths.
+
+pathlib.Path("results").mkdir(exist_ok=True) # Create /results folder, if it doesn't exist
+filename = "results/"+str(f"{datetime.datetime.now():%Y%m%d_%H-%M-%S}") # Randomize filename
+cv2.imwrite(filename+"_source.png", img) # Save image
+cv2.imwrite(filename+"_reduced.png", imgReduced) # Save image
+cv2.imwrite(filename +"_vectors.png", res2) # Save image
+print("Painting finished.")
+print("Total amount of messages sent:", messageCount)
+print("Results saved as: "+filename)
+cv2.imshow("Path Preview", res2)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
