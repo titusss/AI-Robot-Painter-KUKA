@@ -88,13 +88,13 @@ else:
 # Setup variables
 size = np.size(img)
 done = False
-strokeLength = int(cfg.strokeLength*resizeFactor) # Maximum brush stroke length in mm
-brushPixel = cfg.brushSize*resizeFactor
+brushPixel = (cfg.brushSize/resizeFactor)*2
+tolerance = 5 # Shrinks the brush size to force overlapping strokes. Increase for less missed spots. Value in mm.
 initialPath = True
 contourExists = False
 singlePathJump = False
 directionDegrees = 90
-kernelBrush = np.ones((int(brushPixel)-5,int(brushPixel)-5),np.uint8) # Erosion kernel. Reduces brush size. Increase negative values, to reduce missed painting spots
+kernelBrush = np.ones((int(brushPixel)-int((tolerance/resizeFactor)*2),int(brushPixel)-int((tolerance/resizeFactor)*2)),np.uint8) # Erosion kernel. Reduces brush size. Increase negative values, to reduce missed painting spots
 messageCount = 0
 
 #-------------------------------------------------
@@ -162,16 +162,16 @@ while True:
                         contourExists = True
                         # Calculate distance to next coordinate, if there is a next coordinate in the array
                         if m < (len(contours[l])-1):
-                            dist = np.linalg.norm(contours[l][m][0]-contours[l][m+1][0]) # Calculate euclidean distance from current to next point
+                            dist = round((np.linalg.norm(contours[l][m][0]-contours[l][m+1][0]))*resizeFactor,1) # Calculate euclidean distance from current to next point
                             # Calculate more distant coordinates
                             if m < (len(contours[l])-5):
-                                longDist = np.linalg.norm(contours[l][m][0]-contours[l][m+5][0]) # Calculate euclidean distance from current to fifth next point
-                                longX = contours[l][m+5][0][0]
-                                longY = contours[l][m+5][0][1]
+                                longDist = round((np.linalg.norm(contours[l][m][0]-contours[l][m+5][0]))*resizeFactor,1) # Calculate euclidean distance from current to fifth next point
+                                longX = round(contours[l][m+5][0][0]*resizeFactor)
+                                longY = round(contours[l][m+5][0][1]*resizeFactor)
                             # Fallback, when the coordinate array approached it's end
                             else:                               
-                                longX = contours[l][m][0][0]
-                                longY = contours[l][m][0][1]
+                                longX = round(contours[l][m][0][0]*resizeFactor)
+                                longY = round(contours[l][m][0][1]*resizeFactor)
                                 longDist = 0
 
                         # Calculate final coordinates (new and old ones)

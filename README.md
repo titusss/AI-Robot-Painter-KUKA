@@ -1,3 +1,4 @@
+
 <h1 align="center">
         <img
                 alt="KUKA Robot and Canvas"
@@ -28,10 +29,10 @@
 <!--ts-->
    * [What you need](#what-you-need)
    * [Installation](#installation)
-	   * [Server](#server)
-	   * [KRC](#krc)
-	   * [Physical setup](#physical-setup)
-	   * [robot](#robot)
+     * [Server](#server)
+     * [KRC](#krc)
+     * [Physical setup](#physical-setup)
+     * [Robot](#robot)
    * [Starting the painting process](#starting-the-painting-process)
    * [Configuration](#configuration)
       * [Network](#network)
@@ -49,7 +50,7 @@
 - **KUKA robot.** This project was tested with a KR 10 R1420, but should work with any 6-axis KUKA robot.
 - **KRC w. Ethernet-KRL.** This KUKA package is needed for communication between server and KRC.*
 - **Server.** A laptop or similar, that is connected to the KRC via Ethernet and communicates over KLI. ⚠️ A NVIDIA graphics card is needed, when you want to generate pictures with the AI, instead of using pre-generated ones.
-- **Python 3.** Install python on the server. I recommend an <a href="https://www.anaconda.com/distribution/">anaconda install</a>.
+- **Python 3.** Install python and pip on the server. I recommend an <a href="https://www.anaconda.com/distribution/">anaconda install</a>.
 - **Utilities.** Any kind of painting tool attached to the robot, a canvas/paper to draw on, paint and water *(Optional)*.
   
 *This project focuses on generating XYZ-coordinates (as Frames, E6POS or Integers) from an input image in near real-time. ℹ️ In theory any kind of interface could be used here. Generating a complete batch of coordinates and transfering them to the robot control afterwards (via USB-Stick e.g.) is possible with a few modifications.
@@ -60,8 +61,8 @@
 
 > Some libraries and modules such as OpenCV need to be installed in the correct version in order for the script to work. Make sure to install them exactly as specified in `requirements.txt`
 
-1. Pull this repository.
-2. Install python packages with `pip install -r requirements.txt`.
+1. Clone this repository.
+2. Install and python packages with `pip install -r requirements.txt`.
 3. *(Optional)* Check if your system works by executing the demo script with `python DEMO_imgToCNC.py`. A connected robot is not required.
 4. If everything goes well, you should be able to see the path the robot would follow when painting `source/example.jpeg`. Configure `config.py` and check the results with the demo script, until you understand all settings.
 
@@ -98,9 +99,10 @@
 # Starting the painting process
 Choose your settings in `config.py` (see below) and check it's outcome with `python DEMO_imgToCNC.py` until you're happy with the configuration. Start the tool with `python imgToCNC.py` on the server and play `paintImage.src` on your robot in T2 or Automatic to start the painting process.
 
-![image](https://user-images.githubusercontent.com/26855197/65393101-e342cd80-dd7c-11e9-96b4-d4c32dade990.png)
+The python tool will do a security check, after which it prints an easy-to-read summary of your configuration and asks for final confirmation. Should any values exceed the expected range, it will print a "Warning" or a "Danger". This reduces the chance of unintentional operation with dangerously high or low values.
 
-ℹ️ The python tool will do a security check, after which it prints an easy-to-read summary of your configuration and asks for final confirmation. Should any values exceed the expected range, it will print a "Warning" or a "Danger". This eliminates the accidental input of dangerously high or low values.
+
+![image](https://user-images.githubusercontent.com/26855197/65422126-e46c0d00-de05-11e9-9c32-2a9ca3aeab3a.png)
 
 > The time to finish greatly varies and can take up to a whole day. A stroke-only painting with only one color and few paths will need 2 hours to finish, but can be accelerated with modifications. Due to redundant edge paths, most stroke-only paintings will be 'done' after 30 minutes or so, before the robot only paints over existing strokes.
 
@@ -123,9 +125,9 @@ This explains the parameters found in `config.py`, as well as how to choose a sa
  - `strokeLength` `<mm>` Distance in mm painted, after the brush will stop and refresh the paint, to prevent a dried out stroke. Lower this value if the brush looses too much paint, before refreshing it.
  - `toolDepth` `<mm>` Defines how deep the tool will push into the canvas (Z-axis). This is needed, when the tool requires pressure to properly paint. ⚠️ Warning: This will cause high pressure and may cause serious damage if neither tool, nor canvas are flexible. ℹ️ Slowly increase this value for a thicker and stronger stroke.
 #### Fine-tuning *(Optional)*
-ℹ️ The quality of the output can be changed drastically with these parameters. Try them out with the demo tool.
+> The quality of the output can be changed drastically with these parameters. Try them out with the demo tool.
  - `imgScale` `<multiplier>` Scale your image up or down. ℹ️ A smaller image will be painted significantly faster. Aim for around 400x400 pixels.
- - `denoise` `<value>` Reduce noise and complexity in the source image. 10 or higher is recommended. Check denoised images of `DEMO_imgToCNC.py` in `/source`.
+ - `denoise` `<value>` Reduce noise and complexity in the source image. 10 or higher is recommended. Check denoised images of `DEMO_imgToCNC.py` in `/demo_results`.
  - `blur` `<odd value>` Blur the image to reduce noise and complexity.
  - `threshColor` `<0-254>` [Reduce colors with thresholding](https://en.wikipedia.org/wiki/Thresholding_%28image_processing%29) instead of color palette matching. May create better color fields. Deactivate with negative value. Recommended 125. Default -1.
 
@@ -149,8 +151,7 @@ genreType = "abstract" # Define your colors in colors.py and specify the palette
 # Setup
 canvasWidth = 800 # Canvas Width in mm.
 canvasHeight = 800 # Height in mm.
-brushSize = 5 # Diameter of the brush in mm. Defines the size of the gap between
-each brush stroke.
+brushSize = 15 # Diameter of the brush in mm. Defines the size of the gap between each brush stroke.
 strokeLength = 150 # Maximum length of a stroke in mm, before the robot refreshes paint.
 toolDepth = 0 # How deep the tool pushes into the canvas. Necessary for flexible tool or canvas, but dangerous if both are rigid.
 
@@ -160,12 +161,12 @@ denoise = 10 # Denoises image. This greatly reduces complexity and painting time
 blur = 3 # Blurs image to reduce complexity. Value in pixels. Requires odd value.
 threshColor = -1 # Choose value between 0-254 (125 recommended). Negative value deactivates threshold color quantization (Default).
 ```
-**Above:** The `config.py` used for the output.
+**Above:** The `config.py` used for the example output.
 # Recommendations
-I recommend to paint on a horizontal laying strong paper with black paint only. Multi-colored full-area paintings are only usable after lots of fine tuning with good tools. Use a specific image with `imgPath` that proves suitable, instead of random ones and use very high `brushSize` values, to force a contour only painting. Try high `blur` and/or `denoise` values (e.g. 33), to simplify the source image. I highly recommend to work with pre-generated faces from the StyleGAN (Kerras et al.). Downscale larger images to ~400x400 px with `imgScale`. Full color paintings barely work with acrylic and need lot's of paint-layers. By far the easiest approach would be to use a professional painting effector and an edited source image with very few colors or one that only consists of contours (edited with e.g. Photoshop). Play with your config and test it with `DEMO_imgToCNC.py`. Results are visible in `/demo_results`. Speed and movements can be adjusted in the `paintImage.src` KRL file, which should be modified anyways.
+I recommend to paint on a horizontal laying strong paper with black paint only. Multi-colored full-area paintings are only usable after lots of fine tuning with good tools. Use a specific image with `imgPath` that proves suitable, instead of random ones and use very high `brushSize` values, to force a contour only painting. Try high `blur` and/or `denoise` values (e.g. 33), to simplify the source image. I highly recommend to work with pre-generated faces from the StyleGAN (Kerras et al.). Downscale larger images to ~400x400px with `imgScale`. Full color paintings barely work with acrylic and need lot's of paint-layers. By far the easiest approach would be to use a professional painting effector and an edited source image with very few colors or one that only consists of contours (edited with e.g. Photoshop). Play with your config and test it with `DEMO_imgToCNC.py`. Results are visible in `/demo_results`. Speed and movements can be adjusted in the `paintImage.src` KRL file, which should be modified anyways.
 
 # Safety
 
 Regardless of the seemingly high complexity, this process has a limited area of action. However, all personell-teached movements (Start-Up, Taking Paint, Washing, Drying, etc.) happen in a larger area and therefore need careful programming and testing. The auto-generated coordinates on the other side, only act in 2 dimensions and shouldn't exceed the value of the `canvasWidth` or `canvasHeight` parameter. If your canvas base is measured correctly and the canvas size is configured properly, the program should stop itself from leaving the canvas during the painting process. Make sure to leave enough space above the canvas, as the arm will rise 300mm above it, when jumping to new paths. Be careful with the `toolDepth` value, as it will push your tool into the canvas. A process needed for flexible tools or canvas, but very dangerous when both of those are rigid.
 
-#### ⚠️ The author of this repository takes absolutely no responsibility for any kind of damage done with this project. This is not a tool tested for any kind of safety and can/will cause serious harm, injuries and death when used improperly. This code is not safe and should never be used in production.
+**⚠️ The author of this repository takes absolutely no responsibility for any kind of damage done with this project. This is not a tool tested for any kind of safety and can/will cause serious harm, injuries and death when used improperly. This code is not safe and should never be used in production.**
