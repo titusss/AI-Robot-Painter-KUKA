@@ -170,7 +170,6 @@ for i in range(K):
                             longDist = round((np.linalg.norm(contours[l][m][0]-contours[l][m+5][0]))*resizeFactor,1) # Calculate euclidean distance from current to fifth next point
                             longX = round(contours[l][m+5][0][0]*resizeFactor)
                             longY = round(contours[l][m+5][0][1]*resizeFactor)
-                            print("#####", longX)
                         # Fallback, when the coordinate array approached it's end
                         else:                               
                             longX = round(contours[l][m][0][0]*resizeFactor)
@@ -195,7 +194,6 @@ for i in range(K):
                         directionDegrees = (round(math.degrees(directionRadians)/10))*10
 
                     # CLI info
-                    print("#####", longDist)
                     print("Angle to next point:", directionDegrees)
                     print("Distance to next point:", dist)
                     print("Stroke length:", currentStrokeLength)
