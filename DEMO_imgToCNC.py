@@ -88,13 +88,13 @@ else:
 # Setup variables
 size = np.size(img)
 done = False
-strokeLength = int(cfg.strokeLength*resizeFactor) # Maximum brush stroke length in mm
-brushPixel = cfg.brushSize*resizeFactor
+brushPixel = (cfg.brushSize/resizeFactor)*2
+tolerance = 5 # Shrinks the brush size to force overlapping strokes. Increase for less missed spots. Value in mm.
 initialPath = True
 contourExists = False
 singlePathJump = False
 directionDegrees = 90
-kernelBrush = np.ones((int(brushPixel)-5,int(brushPixel)-5),np.uint8) # Erosion kernel. Reduces brush size. Increase negative values, to reduce missed painting spots
+kernelBrush = np.ones((int(brushPixel)-int((tolerance/resizeFactor)*2),int(brushPixel)-int((tolerance/resizeFactor)*2)),np.uint8) # Erosion kernel. Reduces brush size. Increase negative values, to reduce missed painting spots
 messageCount = 0
 
 #-------------------------------------------------
@@ -163,16 +163,18 @@ for i in range(K):
                     contourExists = True
                     # Calculate distance to next coordinate, if there is a next coordinate in the array
                     if m < (len(contours[l])-1):
-                        dist = np.linalg.norm(contours[l][m][0]-contours[l][m+1][0]) # Calculate euclidean distance from current to next point
+                        dist = round((np.linalg.norm(contours[l][m][0]-contours[l][m+1][0]))*resizeFactor,1) # Calculate euclidean distance from current to next point
+                        
                         # Calculate more distant coordinates
                         if m < (len(contours[l])-5):
-                            longDist = np.linalg.norm(contours[l][m][0]-contours[l][m+5][0]) # Calculate euclidean distance from current to fifth next point
-                            longX = contours[l][m+5][0][0]
-                            longY = contours[l][m+5][0][1]
+                            longDist = round((np.linalg.norm(contours[l][m][0]-contours[l][m+5][0]))*resizeFactor,1) # Calculate euclidean distance from current to fifth next point
+                            longX = round(contours[l][m+5][0][0]*resizeFactor)
+                            longY = round(contours[l][m+5][0][1]*resizeFactor)
+                            print("#####", longX)
                         # Fallback, when the coordinate array approached it's end
                         else:                               
-                            longX = contours[l][m][0][0]
-                            longY = contours[l][m][0][1]
+                            longX = round(contours[l][m][0][0]*resizeFactor)
+                            longY = round(contours[l][m][0][1]*resizeFactor)
                             longDist = 0
 
                     # Calculate final coordinates (new and old ones)
@@ -193,6 +195,7 @@ for i in range(K):
                         directionDegrees = (round(math.degrees(directionRadians)/10))*10
 
                     # CLI info
+                    print("#####", longDist)
                     print("Angle to next point:", directionDegrees)
                     print("Distance to next point:", dist)
                     print("Stroke length:", currentStrokeLength)
@@ -220,7 +223,7 @@ for i in range(K):
                         sys.exit("Fatal: Points are being generated, that are larger than the given canvas size. Proceeding may cause serious damage and injury to the manipulator and it's sourroundings.")
                     
                     # Refresh paint, if the robot has painted a path longer than "strokeLength"
-                    if currentStrokeLength > strokeLength:
+                    if currentStrokeLength > cfg.strokeLength:
                         print("Maximum stroke length reached. Refresh paint")
                         sendActions('<Ext><Status>2</Status><Color>99</Color></Ext>')                           
                         currentStrokeLength = 0 # Reset length of the stroke after color refresh
