@@ -19,7 +19,7 @@ genreType = "abstract" # Define your colors in colors.py and specify the palette
 # Setup
 canvasWidth = 800 # Canvas Width in mm.
 canvasHeight = 800 # Height in mm.
-brushSize = 5 # Diameter of the brush in mm. Defines the size of the gap between each brush stroke.
+brushSize = 15 # Diameter of the brush in mm. Defines the size of the gap between each brush stroke.
 strokeLength = 150 # Maximum length of a stroke in mm, before the robot refreshes paint.
 toolDepth = 0 # How deep the tool pushes into the canvas. Necessary for flexible tool or canvas, but dangerous if both are rigid.
 
