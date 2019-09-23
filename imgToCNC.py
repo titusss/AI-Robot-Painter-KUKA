@@ -219,7 +219,7 @@ while True:
                             sys.exit("Fatal: Points are being generated, that are larger than the given canvas size. Proceeding may cause serious damage and injury to the manipulator and it's sourroundings.")
                         
                         # Refresh paint, if the robot has painted a path longer than "strokeLength"
-                        if currentStrokeLength > strokeLength:
+                        if currentStrokeLength > cfg.strokeLength:
                             print("Maximum stroke length reached. Refresh paint")
                             sendActions('<Ext><Status>2</Status><Color>99</Color></Ext>')                           
                             currentStrokeLength = 0 # Reset length of the stroke after color refresh
